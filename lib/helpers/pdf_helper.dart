@@ -1,14 +1,11 @@
 import 'dart:typed_data';
-import 'dart:io';
-import 'package:flutter/foundation.dart' show kIsWeb;
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:pdf/widgets.dart' as pw;
 import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
-import 'package:share_plus/share_plus.dart';
-import 'dart:html' as html; // for web download
+import 'package:split_bill_app/helpers/supabase_helper.dart';
 
 // Formatter Rupiah
 final _currencyFormatter = NumberFormat("#,##0", "id_ID");
@@ -24,7 +21,6 @@ Future<Uint8List> _buildStyledPdfBytes({
 }) async {
   final doc = pw.Document();
 
-  // Load Google Fonts
   final regular = await PdfGoogleFonts.robotoMonoRegular();
   final bold = await PdfGoogleFonts.robotoMonoBold();
 
@@ -172,8 +168,8 @@ Future<Uint8List> _buildStyledPdfBytes({
   return doc.save();
 }
 
-// Fungsi untuk generate & share PDF
-Future<void> generateAndSharePdf({
+// Fungsi generate & share link
+Future<String?> generateAndSharePdf({
   required String title,
   required double subtotal,
   required double extra,
@@ -191,22 +187,18 @@ Future<void> generateAndSharePdf({
     storeName: storeName,
   );
 
-  if (kIsWeb) {
-    // download di browser
-    final blob = html.Blob([bytes]);
-    final url = html.Url.createObjectUrlFromBlob(blob);
-    final anchor = html.document.createElement('a') as html.AnchorElement;
-    anchor.href = url;
-    anchor.download = 'split_bill.pdf';
-    anchor.style.display = 'none';
-    html.document.body!.children.add(anchor);
-    anchor.click();
-    html.document.body!.children.remove(anchor);
-    html.Url.revokeObjectUrl(url);
+  final filename =
+      "SplitBill_${storeName}_${DateTime.now().toLocal().toIso8601String()}";
+  final url = await uploadPdfToSupabase(bytes, filename);
+
+  if (url != null) {
+    return url;
   } else {
-    final dir = await getApplicationDocumentsDirectory();
-    final file = File('${dir.path}/split_bill.pdf');
-    await file.writeAsBytes(bytes);
-    await Share.shareXFiles([XFile(file.path)], text: title);
+    if (context != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Gagal upload ke Supabase")),
+      );
+    }
+    return null;
   }
 }

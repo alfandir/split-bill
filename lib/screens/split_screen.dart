@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:fluttertoast/fluttertoast.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../helpers/storage_helper.dart';
 import '../models/friend.dart';
 import '../models/menu_item.dart';
@@ -19,6 +23,8 @@ class _SplitScreenState extends State<SplitScreen> {
 
   Map<String, Map<String, int>> selections = {};
   final TextEditingController storeController = TextEditingController();
+
+  String? shareUrl; // <- simpan link hasil upload
 
   @override
   void initState() {
@@ -358,6 +364,123 @@ class _SplitScreenState extends State<SplitScreen> {
 
             const SizedBox(height: 20),
 
+            /// Tampilkan URL jika sudah ada
+            if (shareUrl != null)
+              Container(
+                margin: const EdgeInsets.only(top: 20),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 8,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: const [
+                        Icon(Icons.link, color: Colors.indigo, size: 20),
+                        SizedBox(width: 8),
+                        Text(
+                          "Link Hasil Split Bill",
+                          style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 15,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+
+                    /// Link tampil
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: Colors.indigo.shade50,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: SelectableText(
+                        shareUrl!,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: Colors.indigo,
+                          decoration: TextDecoration.underline,
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    /// Tombol aksi
+                    Wrap(
+                      spacing: 10,
+                      runSpacing: 10,
+                      children: [
+                        _shareButton(
+                          icon: Icons.copy,
+                          label: "Copy",
+                          color: Colors.grey.shade200,
+                          onTap: () {
+                            Clipboard.setData(ClipboardData(text: shareUrl!));
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                  content: Text("Link disalin ke clipboard")),
+                            );
+                          },
+                        ),
+                        _shareButton(
+                          icon: Icons.open_in_browser,
+                          label: "Buka",
+                          color: Colors.grey.shade200,
+                          onTap: () async {
+                            final url = Uri.parse(shareUrl!);
+                            if (await canLaunchUrl(url)) {
+                              await launchUrl(url,
+                                  mode: LaunchMode.externalApplication);
+                            }
+                          },
+                        ),
+                        _shareButton(
+                          icon: Icons.chat,
+                          label: "WhatsApp",
+                          color: Colors.green.shade100,
+                          onTap: () async {
+                            final waUrl = Uri.parse(
+                              "https://wa.me/?text=${Uri.encodeComponent(shareUrl!)}",
+                            );
+                            if (await canLaunchUrl(waUrl)) {
+                              await launchUrl(waUrl,
+                                  mode: LaunchMode.externalApplication);
+                            }
+                          },
+                        ),
+                        _shareButton(
+                          icon: Icons.send,
+                          label: "Telegram",
+                          color: Colors.blue.shade100,
+                          onTap: () async {
+                            final tgUrl = Uri.parse(
+                              "https://t.me/share/url?url=${Uri.encodeComponent(shareUrl!)}",
+                            );
+                            if (await canLaunchUrl(tgUrl)) {
+                              await launchUrl(tgUrl,
+                                  mode: LaunchMode.externalApplication);
+                            }
+                          },
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+
             /// Button Export
             Center(
               child: ElevatedButton.icon(
@@ -371,7 +494,7 @@ class _SplitScreenState extends State<SplitScreen> {
                 ),
                 icon: const Icon(Icons.picture_as_pdf),
                 label: const Text('Export PDF & Bagikan'),
-                onPressed: () {
+                onPressed: () async {
                   if (storeController.text.trim().isEmpty) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(content: Text("Isi nama toko dulu")),
@@ -379,7 +502,7 @@ class _SplitScreenState extends State<SplitScreen> {
                     return;
                   }
 
-                  generateAndSharePdf(
+                  final url = await generateAndSharePdf(
                     storeName: storeController.text.trim(),
                     title: 'Split Bill',
                     subtotal: res['subtotal'],
@@ -388,6 +511,12 @@ class _SplitScreenState extends State<SplitScreen> {
                     results: List<Map<String, dynamic>>.from(rows),
                     context: context,
                   );
+
+                  if (url != null) {
+                    setState(() {
+                      shareUrl = url;
+                    });
+                  }
                 },
               ),
             ),
@@ -415,6 +544,36 @@ class _SplitScreenState extends State<SplitScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _shareButton({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 18, color: Colors.black87),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+            ),
+          ],
+        ),
       ),
     );
   }
