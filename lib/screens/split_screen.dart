@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:fluttertoast/fluttertoast.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
+
+import '../helpers/pdf_helper.dart';
 import '../helpers/storage_helper.dart';
+import '../models/extra_fee.dart';
 import '../models/friend.dart';
 import '../models/menu_item.dart';
-import '../models/extra_fee.dart';
-import '../helpers/pdf_helper.dart';
 
 class SplitScreen extends StatefulWidget {
   const SplitScreen({super.key});

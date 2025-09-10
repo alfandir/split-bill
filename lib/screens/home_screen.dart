@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:split_bill_app/screens/history_screen.dart';
 import 'friends_screen.dart';
 import 'menu_screen.dart';
 import 'fees_screen.dart';
@@ -42,6 +43,16 @@ class HomeScreen extends StatelessWidget {
               color: Colors.green.shade100,
               onTap: () => Navigator.push(context,
                   MaterialPageRoute(builder: (_) => const FeesScreen())),
+            ),
+            _FeatureTile(
+              title: 'Riwayat Split Bill',
+              subtitle: 'Lihat file PDF yang tersimpan',
+              icon: Icons.history,
+              color: Colors.purple.shade100,
+              onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const HistoryScreen())), // ⬅️
             ),
             const Spacer(),
             SizedBox(
