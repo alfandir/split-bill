@@ -107,10 +107,13 @@ class _SplitScreenState extends State<SplitScreen> {
     final rows = res['rows'] as List<dynamic>;
 
     return Scaffold(
+      backgroundColor: Colors.grey.shade100,
       appBar: AppBar(
         title: const Text("Split Bill Proporsional"),
         centerTitle: true,
-        elevation: 2,
+        elevation: 1,
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black87,
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -122,8 +125,11 @@ class _SplitScreenState extends State<SplitScreen> {
               controller: storeController,
               decoration: InputDecoration(
                 labelText: "Nama Toko / Resto",
-                border:
-                    OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
                 prefixIcon: const Icon(Icons.storefront),
               ),
             ),
@@ -138,7 +144,8 @@ class _SplitScreenState extends State<SplitScreen> {
                     ?.copyWith(fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             Card(
-              elevation: 3,
+              elevation: 0,
+              color: Colors.white,
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16)),
               child: Padding(
@@ -148,54 +155,62 @@ class _SplitScreenState extends State<SplitScreen> {
                   physics: const NeverScrollableScrollPhysics(),
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 2,
-                    childAspectRatio: 1.7,
+                    childAspectRatio: 1.8,
                     crossAxisSpacing: 8,
                     mainAxisSpacing: 8,
                   ),
                   itemCount: menu.length,
                   itemBuilder: (context, i) {
                     final m = menu[i];
-                    return ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.all(12),
-                        backgroundColor: Colors.blue.shade50,
-                        foregroundColor: Colors.blue.shade900,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
-                      ),
-                      onPressed: () {
+                    return InkWell(
+                      onTap: () {
                         showModalBottomSheet(
                           context: context,
+                          shape: const RoundedRectangleBorder(
+                            borderRadius: BorderRadius.vertical(
+                              top: Radius.circular(16),
+                            ),
+                          ),
                           builder: (_) {
                             return ListView(
+                              padding: const EdgeInsets.all(8),
                               children: friends
-                                  .map((f) => ListTile(
-                                        leading: const Icon(Icons.person),
-                                        title: Text(f.name),
-                                        onTap: () {
-                                          final map = selections[f.id]!;
-                                          map[m.id] = (map[m.id] ?? 0) + 1;
-                                          setState(() {});
-                                          Navigator.pop(context);
-                                        },
+                                  .map((f) => Card(
+                                        child: ListTile(
+                                          leading: const Icon(Icons.person),
+                                          title: Text(f.name),
+                                          onTap: () {
+                                            final map = selections[f.id]!;
+                                            map[m.id] = (map[m.id] ?? 0) + 1;
+                                            setState(() {});
+                                            Navigator.pop(context);
+                                          },
+                                        ),
                                       ))
                                   .toList(),
                             );
                           },
                         );
                       },
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(m.name,
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.w500, fontSize: 14)),
-                          const SizedBox(height: 6),
-                          Text("Rp ${m.price.toStringAsFixed(0)}",
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.bold, fontSize: 13)),
-                        ],
+                      child: Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(12),
+                          color: Colors.indigo.shade50,
+                        ),
+                        padding: const EdgeInsets.all(12),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(m.name,
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w600, fontSize: 14)),
+                            const SizedBox(height: 6),
+                            Text("Rp ${m.price.toStringAsFixed(0)}",
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold, fontSize: 13)),
+                          ],
+                        ),
                       ),
                     );
                   },
@@ -206,91 +221,140 @@ class _SplitScreenState extends State<SplitScreen> {
             const SizedBox(height: 20),
 
             /// Section: Ringkasan
-            Text("Ringkasan Per Orang",
-                style: Theme.of(context)
-                    .textTheme
-                    .titleLarge
-                    ?.copyWith(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            Card(
-              elevation: 3,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16)),
-              child: Column(
-                children: [
-                  ...rows.map((r) {
-                    final items = selections[r['id']] as Map<String, int>;
-                    return ExpansionTile(
-                      leading: const Icon(Icons.person),
-                      title: Text(r['name'],
-                          style: const TextStyle(
-                              fontWeight: FontWeight.w600, fontSize: 16)),
-                      subtitle: Text(
-                          "Pesanan: Rp ${(r['order'] as double).toStringAsFixed(0)}\n"
-                          "Tambahan: Rp ${(r['extra'] as double).toStringAsFixed(0)}"),
-                      trailing: Text(
-                        "Rp ${(r['total'] as double).toStringAsFixed(0)}",
-                        style: const TextStyle(
-                            fontWeight: FontWeight.bold, fontSize: 16),
+            if ((rows as List).any((r) => (r['order'] as double) > 0)) ...[
+              Text("Ringkasan Per Orang",
+                  style: Theme.of(context)
+                      .textTheme
+                      .titleLarge
+                      ?.copyWith(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 12),
+              ...rows.where((r) => (r['order'] as double) > 0).map((r) {
+                final items = selections[r['id']] as Map<String, int>;
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(14),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 6,
+                        offset: const Offset(0, 3),
                       ),
-                      children: [
-                        ...items.keys.map((mId) {
-                          final m = menu.firstWhere((e) => e.id == mId,
-                              orElse: () =>
-                                  MenuItem(id: '', name: '', price: 0));
-                          final qty = items[mId]!;
-                          return ListTile(
-                            dense: true,
-                            title: Text('${m.name} x$qty'),
-                            subtitle: Text(
-                                'Rp ${(m.price * qty).toStringAsFixed(0)}'),
-                            trailing: Row(
-                              mainAxisSize: MainAxisSize.min,
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      /// Nama + Total
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            r['name'],
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          Text(
+                            "Rp ${(r['total'] as double).toStringAsFixed(0)}",
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.indigo,
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 8),
+
+                      /// Rincian Pesanan
+                      ...items.keys.map((mId) {
+                        final m = menu.firstWhere(
+                          (e) => e.id == mId,
+                          orElse: () => MenuItem(id: '', name: '', price: 0),
+                        );
+                        final qty = items[mId]!;
+                        return Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: Text(
+                                "${m.name} x$qty",
+                                style: const TextStyle(fontSize: 14),
+                              ),
+                            ),
+                            Row(
                               children: [
                                 IconButton(
-                                    icon:
-                                        const Icon(Icons.remove_circle_outline),
-                                    onPressed: () {
-                                      _changeQty(r['id'], mId, -1);
-                                    }),
+                                  icon: const Icon(Icons.remove_circle_outline,
+                                      color: Colors.red, size: 20),
+                                  onPressed: () => _changeQty(r['id'], mId, -1),
+                                ),
                                 IconButton(
-                                    icon: const Icon(Icons.add_circle_outline),
-                                    onPressed: () {
-                                      _changeQty(r['id'], mId, 1);
-                                    }),
+                                  icon: const Icon(Icons.add_circle_outline,
+                                      color: Colors.green, size: 20),
+                                  onPressed: () => _changeQty(r['id'], mId, 1),
+                                ),
                               ],
                             ),
-                          );
-                        }).toList(),
-                      ],
-                    );
-                  }).toList(),
-                  const Divider(),
-                  ListTile(
-                    title: const Text("Subtotal"),
-                    trailing: Text(
-                      "Rp ${res['subtotal'].toStringAsFixed(0)}",
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
+                            Text(
+                              "Rp ${(m.price * qty).toStringAsFixed(0)}",
+                              style:
+                                  const TextStyle(fontWeight: FontWeight.w500),
+                            ),
+                          ],
+                        );
+                      }),
+
+                      const SizedBox(height: 8),
+
+                      /// Extra biaya
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text("Biaya tambahan",
+                              style: TextStyle(fontSize: 13)),
+                          Text(
+                            "Rp ${(r['extra'] as double).toStringAsFixed(0)}",
+                            style: const TextStyle(
+                                fontSize: 13, fontWeight: FontWeight.w500),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
-                  ListTile(
-                    title: const Text("Biaya Tambahan"),
-                    trailing: Text(
-                      "Rp ${res['extra'].toStringAsFixed(0)}",
-                      style: const TextStyle(fontWeight: FontWeight.bold),
+                );
+              }),
+
+              /// Ringkasan total
+              Container(
+                margin: const EdgeInsets.only(top: 8),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(14),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 6,
+                      offset: const Offset(0, 3),
                     ),
-                  ),
-                  ListTile(
-                    title: const Text("Total"),
-                    trailing: Text(
-                      "Rp ${res['grand'].toStringAsFixed(0)}",
-                      style: const TextStyle(
-                          fontWeight: FontWeight.bold, fontSize: 18),
-                    ),
-                  ),
-                ],
+                  ],
+                ),
+                child: Column(
+                  children: [
+                    _summaryRow("Subtotal", res['subtotal']),
+                    _summaryRow("Biaya Tambahan", res['extra']),
+                    const Divider(),
+                    _summaryRow("Grand Total", res['grand'], isBold: true),
+                  ],
+                ),
               ),
-            ),
+            ],
 
             const SizedBox(height: 20),
 
@@ -300,7 +364,7 @@ class _SplitScreenState extends State<SplitScreen> {
                 style: ElevatedButton.styleFrom(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                  backgroundColor: Colors.red.shade600,
+                  backgroundColor: Colors.indigo,
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(14)),
@@ -329,6 +393,28 @@ class _SplitScreenState extends State<SplitScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _summaryRow(String label, double value, {bool isBold = false}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label,
+              style: TextStyle(
+                  fontWeight: isBold ? FontWeight.w600 : FontWeight.normal)),
+          Text(
+            "Rp ${value.toStringAsFixed(0)}",
+            style: TextStyle(
+              fontWeight: isBold ? FontWeight.w700 : FontWeight.w500,
+              fontSize: isBold ? 16 : 14,
+              color: isBold ? Colors.indigo : Colors.black87,
+            ),
+          ),
+        ],
       ),
     );
   }
