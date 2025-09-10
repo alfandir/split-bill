@@ -1,4 +1,6 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -7,10 +9,16 @@ import 'screens/home_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  if (!kIsWeb) {
+    await dotenv.load();
+  } else {
+    // Web
+    await dotenv.load(fileName: "config/.env");
+  }
+
   await Supabase.initialize(
-    url: 'https://dwndafuezsgdepouubpq.supabase.co', // <- ganti
-    anonKey:
-        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR3bmRhZnVlenNnZGVwb3V1YnBxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc1MDQ2NTAsImV4cCI6MjA3MzA4MDY1MH0.bmUiv30eZoZmojhC6edme_EANFNSXLn9LX15dYxTXuE', // <- ganti
+    url: dotenv.env['SUPABASE_URL']!,
+    anonKey: dotenv.env['SUPABASE_ANON_KEY']!,
   );
   await StorageHelper.init();
   runApp(const MyApp());
