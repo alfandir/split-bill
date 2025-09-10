@@ -1,12 +1,18 @@
-import 'dart:html' as html; // for web download
-import 'dart:io';
 import 'dart:typed_data';
-
+import 'dart:io';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:pdf/widgets.dart' as pw;
+import 'package:pdf/pdf.dart';
+import 'package:printing/printing.dart';
 import 'package:share_plus/share_plus.dart';
+import 'dart:html' as html; // for web download
+
+// Formatter Rupiah
+final _currencyFormatter = NumberFormat("#,##0", "id_ID");
+String formatRupiah(num value) => "Rp ${_currencyFormatter.format(value)}";
 
 Future<Uint8List> _buildStyledPdfBytes({
   required String storeName,
@@ -18,97 +24,143 @@ Future<Uint8List> _buildStyledPdfBytes({
 }) async {
   final doc = pw.Document();
 
+  // Load Google Fonts
+  final regular = await PdfGoogleFonts.robotoMonoRegular();
+  final bold = await PdfGoogleFonts.robotoMonoBold();
+
   doc.addPage(
     pw.Page(
+      margin: const pw.EdgeInsets.all(16),
+      pageFormat: PdfPageFormat.a4,
       build: (context) {
-        return pw.Container(
-          padding: const pw.EdgeInsets.all(24),
+        return pw.DefaultTextStyle(
+          style: pw.TextStyle(font: regular, fontSize: 11),
           child: pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            crossAxisAlignment: pw.CrossAxisAlignment.stretch,
             children: [
-              // Header
+              // Header toko
               pw.Center(
                 child: pw.Column(
                   children: [
-                    pw.Text(storeName,
-                        style: pw.TextStyle(
-                            fontSize: 20, fontWeight: pw.FontWeight.bold)),
-                    pw.SizedBox(height: 4),
-                    pw.Text("Tanggal: ${DateTime.now()}",
-                        style: const pw.TextStyle(fontSize: 10)),
+                    pw.Text(storeName.toUpperCase(),
+                        style: pw.TextStyle(font: bold, fontSize: 18)),
+                    pw.SizedBox(height: 2),
+                    pw.Text(
+                      "Tanggal: ${DateTime.now().toLocal().toString().split('.')[0]}",
+                      style: pw.TextStyle(font: regular, fontSize: 9),
+                    ),
                   ],
                 ),
               ),
-              pw.SizedBox(height: 16),
+              pw.SizedBox(height: 12),
+              pw.Text(title,
+                  textAlign: pw.TextAlign.center,
+                  style: pw.TextStyle(font: bold, fontSize: 14)),
+              pw.SizedBox(height: 6),
+              pw.Divider(borderStyle: pw.BorderStyle.dashed),
 
-              // Title + Total
-              pw.Row(
-                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                children: [
-                  pw.Text(title,
-                      style: pw.TextStyle(
-                          fontSize: 14, fontWeight: pw.FontWeight.bold)),
-                  pw.Text("Rp ${total.toStringAsFixed(0)}",
-                      style: pw.TextStyle(
-                          fontSize: 16, fontWeight: pw.FontWeight.bold)),
-                ],
-              ),
-              pw.Divider(),
-
-              // Items
-              pw.Column(
-                children: results.map((e) {
-                  return pw.Padding(
-                    padding: const pw.EdgeInsets.symmetric(vertical: 4),
-                    child: pw.Row(
+              // Daftar orang
+              ...results.map((r) {
+                final items = r['items'] as List<Map<String, dynamic>>?;
+                return pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.SizedBox(height: 6),
+                    pw.Text(r['name'],
+                        style: pw.TextStyle(font: bold, fontSize: 12)),
+                    if (items != null && items.isNotEmpty)
+                      pw.Column(
+                        children: items.map((i) {
+                          return pw.Padding(
+                            padding: const pw.EdgeInsets.symmetric(vertical: 1),
+                            child: pw.Row(
+                              mainAxisAlignment:
+                                  pw.MainAxisAlignment.spaceBetween,
+                              children: [
+                                pw.Expanded(
+                                  child: pw.Text(
+                                    "${i['name']} x${i['qty']}",
+                                    style: pw.TextStyle(
+                                        font: regular, fontSize: 10),
+                                  ),
+                                ),
+                                pw.Text(
+                                  formatRupiah(i['price'] * i['qty']),
+                                  style:
+                                      pw.TextStyle(font: regular, fontSize: 10),
+                                ),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    pw.SizedBox(height: 2),
+                    pw.Row(
                       mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                       children: [
-                        pw.Expanded(
-                          child: pw.Text(e['name'],
-                              style: const pw.TextStyle(fontSize: 12)),
-                        ),
-                        pw.Text(
-                          "Rp ${(e['total'] as double).toStringAsFixed(0)}",
-                          style: const pw.TextStyle(fontSize: 12),
-                        ),
+                        pw.Text("Subtotal:",
+                            style: pw.TextStyle(font: bold, fontSize: 10)),
+                        pw.Text(formatRupiah(r['order']),
+                            style: pw.TextStyle(font: regular, fontSize: 10)),
                       ],
                     ),
-                  );
-                }).toList(),
-              ),
+                    pw.Row(
+                      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                      children: [
+                        pw.Text("Biaya Tambahan:",
+                            style: pw.TextStyle(font: bold, fontSize: 10)),
+                        pw.Text(formatRupiah(r['extra']),
+                            style: pw.TextStyle(font: regular, fontSize: 10)),
+                      ],
+                    ),
+                    pw.Row(
+                      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                      children: [
+                        pw.Text("Total:",
+                            style: pw.TextStyle(font: bold, fontSize: 11)),
+                        pw.Text(formatRupiah(r['total']),
+                            style: pw.TextStyle(font: bold, fontSize: 11)),
+                      ],
+                    ),
+                    pw.Divider(),
+                  ],
+                );
+              }).toList(),
 
-              pw.Divider(),
+              pw.SizedBox(height: 10),
+              pw.Divider(borderStyle: pw.BorderStyle.dashed),
 
-              // Summary
+              // Ringkasan akhir
               pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
-                  pw.Text("Subtotal"),
-                  pw.Text("Rp ${subtotal.toStringAsFixed(0)}"),
+                  pw.Text("Subtotal", style: pw.TextStyle(font: bold)),
+                  pw.Text(formatRupiah(subtotal),
+                      style: pw.TextStyle(font: regular)),
                 ],
               ),
               pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
-                  pw.Text("Biaya tambahan"),
-                  pw.Text("Rp ${extra.toStringAsFixed(0)}"),
+                  pw.Text("Biaya Tambahan", style: pw.TextStyle(font: bold)),
+                  pw.Text(formatRupiah(extra),
+                      style: pw.TextStyle(font: regular)),
                 ],
               ),
               pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
-                  pw.Text("Grand Total",
-                      style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-                  pw.Text("Rp ${total.toStringAsFixed(0)}",
-                      style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                  pw.Text("GRAND TOTAL",
+                      style: pw.TextStyle(font: bold, fontSize: 13)),
+                  pw.Text(formatRupiah(total),
+                      style: pw.TextStyle(font: bold, fontSize: 13)),
                 ],
               ),
 
-              pw.SizedBox(height: 24),
+              pw.SizedBox(height: 16),
               pw.Center(
-                child: pw.Text("THANK YOU!",
-                    style: pw.TextStyle(
-                        fontSize: 14, fontWeight: pw.FontWeight.bold)),
+                child: pw.Text("*** TERIMA KASIH ***",
+                    style: pw.TextStyle(font: bold, fontSize: 12)),
               ),
             ],
           ),
@@ -120,6 +172,7 @@ Future<Uint8List> _buildStyledPdfBytes({
   return doc.save();
 }
 
+// Fungsi untuk generate & share PDF
 Future<void> generateAndSharePdf({
   required String title,
   required double subtotal,
@@ -127,17 +180,19 @@ Future<void> generateAndSharePdf({
   required double total,
   required List<Map<String, dynamic>> results,
   BuildContext? context,
+  String storeName = "-",
 }) async {
   final bytes = await _buildStyledPdfBytes(
-      title: title,
-      subtotal: subtotal,
-      extra: extra,
-      total: total,
-      results: results,
-      storeName: "-");
+    title: title,
+    subtotal: subtotal,
+    extra: extra,
+    total: total,
+    results: results,
+    storeName: storeName,
+  );
 
   if (kIsWeb) {
-    // trigger browser download
+    // download di browser
     final blob = html.Blob([bytes]);
     final url = html.Url.createObjectUrlFromBlob(blob);
     final anchor = html.document.createElement('a') as html.AnchorElement;
@@ -152,7 +207,6 @@ Future<void> generateAndSharePdf({
     final dir = await getApplicationDocumentsDirectory();
     final file = File('${dir.path}/split_bill.pdf');
     await file.writeAsBytes(bytes);
-    // share
     await Share.shareXFiles([XFile(file.path)], text: title);
   }
 }

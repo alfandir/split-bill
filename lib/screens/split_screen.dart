@@ -7,6 +7,7 @@ import '../helpers/pdf_helper.dart';
 
 class SplitScreen extends StatefulWidget {
   const SplitScreen({super.key});
+
   @override
   State<SplitScreen> createState() => _SplitScreenState();
 }
@@ -17,6 +18,7 @@ class _SplitScreenState extends State<SplitScreen> {
   List<ExtraFee> fees = [];
 
   Map<String, Map<String, int>> selections = {};
+  final TextEditingController storeController = TextEditingController();
 
   @override
   void initState() {
@@ -54,22 +56,33 @@ class _SplitScreenState extends State<SplitScreen> {
 
     List<Map<String, dynamic>> rows = [];
     for (var f in friends) {
-      final items = selections[f.id] ?? {};
+      final itemsMap = selections[f.id] ?? {};
       double order = 0;
-      for (var mId in items.keys) {
-        final qty = items[mId]!;
-        final m = menu.firstWhere((e) => e.id == mId);
-        order += m.price * qty;
-      }
+
+      List<Map<String, dynamic>> items = itemsMap.entries.map((e) {
+        final m = menu.firstWhere((mm) => mm.id == e.key,
+            orElse: () => MenuItem(id: '', name: '', price: 0));
+        final totalItem = m.price * e.value;
+        order += totalItem;
+        return {
+          'name': m.name,
+          'qty': e.value,
+          'price': m.price,
+          'total': totalItem,
+        };
+      }).toList();
+
       double proportionalExtra = 0;
       if (subtotal > 0) proportionalExtra = extraTotal * (order / subtotal);
       final total = order + proportionalExtra;
+
       rows.add({
         'id': f.id,
         'name': f.name,
         'order': order,
         'extra': proportionalExtra,
-        'total': total
+        'total': total,
+        'items': items,
       });
     }
 
@@ -95,7 +108,7 @@ class _SplitScreenState extends State<SplitScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Split Bill'),
+        title: const Text("Split Bill Proporsional"),
         centerTitle: true,
         elevation: 2,
       ),
@@ -104,96 +117,111 @@ class _SplitScreenState extends State<SplitScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            /// Input Store Name
+            TextField(
+              controller: storeController,
+              decoration: InputDecoration(
+                labelText: "Nama Toko / Resto",
+                border:
+                    OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                prefixIcon: const Icon(Icons.storefront),
+              ),
+            ),
+
+            const SizedBox(height: 20),
+
             /// Section: Menu
+            Text("Pilih Menu",
+                style: Theme.of(context)
+                    .textTheme
+                    .titleLarge
+                    ?.copyWith(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
             Card(
-              elevation: 2,
+              elevation: 3,
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16)),
               child: Padding(
                 padding: const EdgeInsets.all(12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Menu',
-                        style: Theme.of(context).textTheme.titleMedium),
-                    const SizedBox(height: 8),
-                    GridView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      gridDelegate:
-                          const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
-                        childAspectRatio: 1.8,
-                        crossAxisSpacing: 8,
-                        mainAxisSpacing: 8,
+                child: GridView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    childAspectRatio: 1.7,
+                    crossAxisSpacing: 8,
+                    mainAxisSpacing: 8,
+                  ),
+                  itemCount: menu.length,
+                  itemBuilder: (context, i) {
+                    final m = menu[i];
+                    return ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.all(12),
+                        backgroundColor: Colors.blue.shade50,
+                        foregroundColor: Colors.blue.shade900,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
                       ),
-                      itemCount: menu.length,
-                      itemBuilder: (context, i) {
-                        final m = menu[i];
-                        return ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            padding: const EdgeInsets.all(12),
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12)),
-                          ),
-                          onPressed: () {
-                            showModalBottomSheet(
-                              context: context,
-                              builder: (_) {
-                                return ListView(
-                                  children: friends
-                                      .map((f) => ListTile(
-                                            leading: const Icon(Icons.person),
-                                            title: Text(f.name),
-                                            onTap: () {
-                                              final map = selections[f.id]!;
-                                              map[m.id] = (map[m.id] ?? 0) + 1;
-                                              setState(() {});
-                                              Navigator.pop(context);
-                                            },
-                                          ))
-                                      .toList(),
-                                );
-                              },
+                      onPressed: () {
+                        showModalBottomSheet(
+                          context: context,
+                          builder: (_) {
+                            return ListView(
+                              children: friends
+                                  .map((f) => ListTile(
+                                        leading: const Icon(Icons.person),
+                                        title: Text(f.name),
+                                        onTap: () {
+                                          final map = selections[f.id]!;
+                                          map[m.id] = (map[m.id] ?? 0) + 1;
+                                          setState(() {});
+                                          Navigator.pop(context);
+                                        },
+                                      ))
+                                  .toList(),
                             );
                           },
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(m.name,
-                                  style:
-                                      Theme.of(context).textTheme.bodyMedium),
-                              const SizedBox(height: 4),
-                              Text("Rp ${m.price.toStringAsFixed(0)}",
-                                  style: const TextStyle(
-                                      fontWeight: FontWeight.bold)),
-                            ],
-                          ),
                         );
                       },
-                    ),
-                  ],
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(m.name,
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.w500, fontSize: 14)),
+                          const SizedBox(height: 6),
+                          Text("Rp ${m.price.toStringAsFixed(0)}",
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.bold, fontSize: 13)),
+                        ],
+                      ),
+                    );
+                  },
                 ),
               ),
             ),
 
-            const SizedBox(height: 16),
+            const SizedBox(height: 20),
 
             /// Section: Ringkasan
+            Text("Ringkasan Per Orang",
+                style: Theme.of(context)
+                    .textTheme
+                    .titleLarge
+                    ?.copyWith(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
             Card(
-              elevation: 2,
+              elevation: 3,
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16)),
               child: Column(
                 children: [
-                  ListTile(
-                    leading: const Icon(Icons.group),
-                    title: const Text('Ringkasan Per Orang'),
-                  ),
-                  const Divider(),
                   ...rows.map((r) {
                     final items = selections[r['id']] as Map<String, int>;
-                    return ListTile(
+                    return ExpansionTile(
+                      leading: const Icon(Icons.person),
                       title: Text(r['name'],
                           style: const TextStyle(
                               fontWeight: FontWeight.w600, fontSize: 16)),
@@ -205,61 +233,36 @@ class _SplitScreenState extends State<SplitScreen> {
                         style: const TextStyle(
                             fontWeight: FontWeight.bold, fontSize: 16),
                       ),
-                      isThreeLine: true,
-                      onTap: () {
-                        showModalBottomSheet(
-                          context: context,
-                          builder: (_) {
-                            return Padding(
-                              padding: const EdgeInsets.all(16),
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text("Detail Pesanan ${r['name']}",
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .titleMedium),
-                                  const SizedBox(height: 8),
-                                  ListView(
-                                    shrinkWrap: true,
-                                    children: items.keys.map((mId) {
-                                      final m = menu.firstWhere(
-                                          (e) => e.id == mId,
-                                          orElse: () => MenuItem(
-                                              id: '', name: '', price: 0));
-                                      final qty = items[mId]!;
-                                      return ListTile(
-                                        title: Text('${m.name} x$qty'),
-                                        subtitle: Text(
-                                            'Rp ${(m.price * qty).toStringAsFixed(0)}'),
-                                        trailing: Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            IconButton(
-                                                icon: const Icon(Icons.remove),
-                                                onPressed: () {
-                                                  _changeQty(r['id'], mId, -1);
-                                                }),
-                                            IconButton(
-                                                icon: const Icon(Icons.add),
-                                                onPressed: () {
-                                                  _changeQty(r['id'], mId, 1);
-                                                }),
-                                          ],
-                                        ),
-                                      );
-                                    }).toList(),
-                                  ),
-                                  TextButton(
-                                    onPressed: () => Navigator.pop(context),
-                                    child: const Text('Tutup'),
-                                  ),
-                                ],
-                              ),
-                            );
-                          },
-                        );
-                      },
+                      children: [
+                        ...items.keys.map((mId) {
+                          final m = menu.firstWhere((e) => e.id == mId,
+                              orElse: () =>
+                                  MenuItem(id: '', name: '', price: 0));
+                          final qty = items[mId]!;
+                          return ListTile(
+                            dense: true,
+                            title: Text('${m.name} x$qty'),
+                            subtitle: Text(
+                                'Rp ${(m.price * qty).toStringAsFixed(0)}'),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                    icon:
+                                        const Icon(Icons.remove_circle_outline),
+                                    onPressed: () {
+                                      _changeQty(r['id'], mId, -1);
+                                    }),
+                                IconButton(
+                                    icon: const Icon(Icons.add_circle_outline),
+                                    onPressed: () {
+                                      _changeQty(r['id'], mId, 1);
+                                    }),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                      ],
                     );
                   }).toList(),
                   const Divider(),
@@ -296,14 +299,24 @@ class _SplitScreenState extends State<SplitScreen> {
               child: ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(
                   padding:
-                      const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                      const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                  backgroundColor: Colors.red.shade600,
+                  foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
+                      borderRadius: BorderRadius.circular(14)),
                 ),
                 icon: const Icon(Icons.picture_as_pdf),
-                label: const Text('Export PDF & Share/Download'),
+                label: const Text('Export PDF & Bagikan'),
                 onPressed: () {
+                  if (storeController.text.trim().isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text("Isi nama toko dulu")),
+                    );
+                    return;
+                  }
+
                   generateAndSharePdf(
+                    storeName: storeController.text.trim(),
                     title: 'Split Bill',
                     subtotal: res['subtotal'],
                     extra: res['extra'],
