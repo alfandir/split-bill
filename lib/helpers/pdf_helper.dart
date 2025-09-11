@@ -56,7 +56,9 @@ Future<Uint8List> _buildStyledPdfBytes({
               pw.Divider(borderStyle: pw.BorderStyle.dashed),
 
               // Daftar orang
-              ...results.map((r) {
+              ...results
+                  .where((r) => r['items'] != null && r['items'].isNotEmpty)
+                  .map((r) {
                 final items = r['items'] as List<Map<String, dynamic>>?;
                 return pw.Column(
                   crossAxisAlignment: pw.CrossAxisAlignment.start,

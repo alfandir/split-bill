@@ -1,6 +1,5 @@
-import 'dart:developer';
-
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart'; // Untuk format tanggal
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/services.dart';
@@ -149,17 +148,27 @@ class _HistoryScreenState extends State<HistoryScreen> {
     );
   }
 
+  String formatDate(DateTime? date) {
+    if (date == null) return "-";
+    return DateFormat('dd MMM yyyy HH:mm').format(date);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text("Riwayat Split Bill"),
-        elevation: 2,
+        elevation: 0,
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black,
+        centerTitle: true,
       ),
       body: loading
           ? const Center(child: CircularProgressIndicator())
           : files.isEmpty
-              ? const Center(child: Text("Belum ada riwayat PDF"))
+              ? const Center(
+                  child: Text("Belum ada riwayat PDF",
+                      style: TextStyle(fontSize: 16)))
               : ListView.builder(
                   padding: const EdgeInsets.all(16),
                   itemCount: files.length,
@@ -167,21 +176,34 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     final file = files[index];
                     final filename = file.name;
                     final createdAt =
-                        file.createdAt?.toString().split('.')[0] ?? "-";
+                        formatDate(DateTime.parse(file.createdAt ?? ''));
 
                     return Card(
                       margin: const EdgeInsets.symmetric(vertical: 8),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      elevation: 2,
+                          borderRadius: BorderRadius.circular(12)),
+                      elevation: 3,
                       child: ListTile(
-                        leading:
-                            const Icon(Icons.picture_as_pdf, color: Colors.red),
-                        title: Text(filename,
-                            style:
-                                const TextStyle(fontWeight: FontWeight.bold)),
-                        subtitle: Text("Upload: $createdAt"),
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 12),
+                        leading: Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                                colors: [Colors.red, Colors.orange]),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(Icons.picture_as_pdf,
+                              color: Colors.white, size: 24),
+                        ),
+                        title: Text(
+                          filename,
+                          style: const TextStyle(
+                              fontWeight: FontWeight.bold, fontSize: 16),
+                        ),
+                        subtitle: Text("Upload: $createdAt",
+                            style: const TextStyle(color: Colors.grey)),
                         trailing: IconButton(
                           icon: const Icon(Icons.more_vert),
                           onPressed: () => _showFileActions(filename),
