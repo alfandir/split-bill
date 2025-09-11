@@ -480,6 +480,8 @@ class _SplitScreenState extends State<SplitScreen> {
                 ),
               ),
 
+            const SizedBox(height: 20),
+
             /// Button Export
             Center(
               child: ElevatedButton.icon(
